@@ -1,0 +1,182 @@
+import random
+import os
+from kivy.app import App
+from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.uix.image import Image
+from kivy.uix.scrollview import ScrollView
+from kivy.graphics import Color, RoundedRectangle
+from kivy.core.window import Window
+from kivy.utils import get_color_from_hex
+from kivy.core.audio import SoundLoader
+from kivy.clock import Clock
+
+# --- 1. PROGRAMMA DIZAÝN SAZLAMALARY ---
+TEAL_MAIN = "#0D9488"
+KIDS_COLOR = "#38BDF8"
+ADULT_COLOR = "#1E293B"
+Window.clearcolor = get_color_from_hex("#F8FAFC")
+
+# DATA_BASE bölümi şol durşuna galýar (Seniň ugradan uly bazaň)
+DATA_BASE = {
+    "kids": {
+        "Matematika": [[f"{i}+2=?", str(i+1), str(i+2), str(i+3), str(i+2)] for i in range(1, 101)],
+        "Harplar Synag": [
+            ["Türkmen elipbiýinde 'A'-dan soň haýsy harp gelýär?", "B", "Ç", "D", "B"],
+            ["Ýyldyzlar nämeden emele gelýär?", "Gaz we tozandan", "Daşdan", "Suwdan", "Gaz we tozandan"],
+            ["Aý näme?", "Planeta", "Ýyldyz", "Hemra", "Hemra"]
+        ] + [[f"Çagalar üçin harp soragy {i}", "A", "B", "C", "A"] for i in range(4, 101)],
+        "Sanlar Synag": [[f"9-dan soň haýsy san gelýär?", "8", "10", "11", "10"]] * 100,
+        "Inlis Harplar": [[f"Inlisçe 'A' harpdan soň näme gelýär?", "C", "B", "D", "B"]] * 100,
+        "Rus Harplar": [[f"Rusça 'А' harpdan soň näme gelýär?", "В", "Б", "Г", "Б"]] * 100,
+        "Hemmesi": [[f"Çagalar üçin umumy sorag {i}", "A", "B", "C", "A"] for i in range(1, 101)]
+    },
+    "adults": {
+        "Inlis dili": [[f"English grammar test Q{i}", "is", "am", "are", "am"] for i in range(1, 101)],
+        "Rus dili": [[f"Rus dili grammatika {i}", "A", "B", "C", "B"] for i in range(1, 101)],
+        "Nems dili": [[f"Deutsch Frage {i}", "Der", "Die", "Das", "Der"] for i in range(1, 101)],
+        "Latyn dili": [[f"Latina Questio {i}", "A", "B", "C", "C"] for i in range(1, 101)],
+        "Arap dili": [[f"Arap dili sorag {i}", "Jogap 1", "Jogap 2", "Jogap 3", "Jogap 1"] for i in range(1, 101)],
+        "Fransuz dili": [[f"Français Question {i}", "Oui", "Non", "Merci", "Oui"] for i in range(1, 101)],
+        "Hytaý dili": [[f"Chinese (Mandarin) Q{i}", "Ni hao", "Xie xie", "Zai jian", "Ni hao"] for i in range(1, 101)],
+        "Koreý dili": [[f"Korean (Hangul) Q{i}", "Annyeong", "Kamsahamnida", "Saranghae", "Annyeong"] for i in range(1, 101)],
+        "Ýapon dili": [[f"Japanese (Kanji/Kana) Q{i}", "Arigato", "Konichiwa", "Sayonara", "Konichiwa"] for i in range(1, 101)],
+        "Hukuk": [
+            ["Türkmenistanyň Raýat Kodeksi nämäni düzgünleşdirýär?", "Jenaýaty", "Mülki gatnaşyklary", "Söwdany", "Mülki gatnaşyklary"]
+        ] + [[f"Hukuk soragy {i}", "Jogap A", "Jogap B", "Jogap C", "Jogap B"] for i in range(2, 101)],
+        "Matematika": [[f"Kwadratyň tarapy {i} bolsa, meýdany?", str(i*2), str(i*i), str(i+4), str(i*i)] for i in range(1, 101)],
+        "Himiýa": [[f"Element {i} näme?", "Gaz", "Metal", "Suwuklyk", "Metal"] for i in range(1, 101)],
+        "Fizika": [[f"Fizika kanuny {i}", "Nyuton", "Eýnşteýn", "Tesla", "Nyuton"] for i in range(1, 101)],
+        "Biologiýa": [[f"Öýjük soragy {i}", "A", "B", "C", "A"] for i in range(1, 101)],
+        "Informatika": [[f"Programmirleme soragy {i}", "Python", "Java", "C++", "Python"] for i in range(1, 101)]
+    }
+}
+
+# --- 3. DÜWME DIZAÝNY ---
+class StyledBtn(Button):
+    def __init__(self, color_hex, rad=25, **kwargs):
+        super().__init__(**kwargs)
+        self.background_normal = ''
+        self.background_color = (0,0,0,0)
+        self.bold = True
+        with self.canvas.before:
+            Color(rgba=get_color_from_hex(color_hex))
+            self.rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[rad])
+        self.bind(pos=self.update, size=self.update)
+    def update(self, *args):
+        self.rect.pos, self.rect.size = self.pos, self.size
+
+# --- 4. EKRANLAR ---
+class SplashScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        l = BoxLayout(orientation='vertical', padding=40, spacing=20)
+        
+        # SURAT ÝÜKLEMEK (Eger surat ýok bolsa hata bermez ýaly barlag bar)
+        img_path = 'mugallym_okuwcy.png'
+        if os.path.exists(img_path):
+            l.add_widget(Image(source=img_path, size_hint_y=0.5))
+        else:
+            l.add_widget(Label(text="[SURAT GOÝUŇ]", size_hint_y=0.5, color=(0.5,0.5,0.5,1)))
+            
+        l.add_widget(Label(text="BILIM MERKEZI", font_size='35sp', bold=True, color=get_color_from_hex(TEAL_MAIN)))
+        btn = StyledBtn(text="HOŞ GELDIGIŇIZ\nDOWAM ET", color_hex=TEAL_MAIN, size_hint=(0.8, 0.15), pos_hint={'center_x':0.5})
+        btn.bind(on_release=lambda x: setattr(self.manager, 'current', 'age_select'))
+        l.add_widget(btn); self.add_widget(l)
+
+class AgeSelect(Screen):
+    def set_age(self, m):
+        App.get_running_app().mode = m
+        self.manager.current = 'menu'
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        l = BoxLayout(orientation='vertical', padding=50, spacing=30)
+        l.add_widget(Label(text="KATEGORIÝANY SAÝLAŇ", font_size='26sp', bold=True, color=(0,0,0,1)))
+        b1 = StyledBtn(text="KIÇI ÝAŞLY", color_hex=KIDS_COLOR)
+        b1.bind(on_release=lambda x: self.set_age('kids'))
+        b2 = StyledBtn(text="ULY ÝAŞLY", color_hex=ADULT_COLOR)
+        b2.bind(on_release=lambda x: self.set_age('adults'))
+        l.add_widget(b1); l.add_widget(b2); self.add_widget(l)
+
+class MenuScreen(Screen):
+    def on_enter(self):
+        self.l.clear_widgets()
+        m = App.get_running_app().mode
+        self.l.add_widget(Label(text="Dersleri saýla we özüňi kämilleşdir", font_size='18sp', size_hint_y=0.1, color=get_color_from_hex(TEAL_MAIN)))
+        grid = GridLayout(cols=1, spacing=15, size_hint_y=None, padding=20)
+        grid.bind(minimum_height=grid.setter('height'))
+        for s in list(DATA_BASE[m].keys()):
+            btn = StyledBtn(text=s, color_hex=TEAL_MAIN, size_hint_y=None, height=90)
+            btn.bind(on_release=lambda x, n=s: self.start_action(n))
+            grid.add_widget(btn)
+        scroll = ScrollView(); scroll.add_widget(grid); self.l.add_widget(scroll)
+
+    def start_action(self, name):
+        App.get_running_app().cur_sub = name
+        self.manager.current = 'quiz'
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.l = BoxLayout(orientation='vertical'); self.add_widget(self.l)
+
+class QuizScreen(Screen):
+    def on_enter(self):
+        self.score, self.idx = 0, 0
+        self.mode = App.get_running_app().mode
+        self.sub = App.get_running_app().cur_sub
+        self.max_q = 10 if self.mode == 'kids' else 20
+        
+        # SESLERI ÝÜKLEMEK
+        self.s_ok = SoundLoader.load('dogry.mp3')
+        self.s_no = SoundLoader.load('yalnys.mp3')
+        
+        all_q = DATA_BASE[self.mode].get(self.sub, [])
+        self.questions = random.sample(all_q, min(len(all_q), self.max_q))
+        self.show_q()
+
+    def show_q(self):
+        if self.idx < len(self.questions):
+            q = self.questions[self.idx]
+            self.lbl.text = f"{self.sub}\n\nSorag {self.idx+1}: {q[0]}"
+            opts = q[1:4]; random.shuffle(opts)
+            for i in range(3): self.btns[i].text = opts[i]; self.btns[i].opacity = 1
+            self.ans = q[4]
+        else:
+            rank = "🏆 ALTYN ORUN" if self.score >= self.max_q*0.9 else "🥈 KÜMÜŞ ORUN"
+            self.lbl.text = f"NETIJE: {rank}\nBal: {self.score*10}"
+            for b in self.btns: b.opacity = 0
+            Clock.schedule_once(lambda d: setattr(self.manager, 'current', 'menu'), 3)
+
+    def check(self, b):
+        if b.text == self.ans:
+            self.score += 1
+            if self.s_ok: self.s_ok.play() # DOGRY SESI
+        else:
+            if self.s_no: self.s_no.play() # ÝALŇYŞ SESI
+        self.idx += 1; self.show_q()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        l = BoxLayout(orientation='vertical', padding=30, spacing=20)
+        self.lbl = Label(text="", font_size='22sp', color=(0,0,0,1), halign='center')
+        l.add_widget(self.lbl)
+        self.btns = [StyledBtn(text="", color_hex="#3B82F6", size_hint_y=0.15) for _ in range(3)]
+        for b in self.btns: b.bind(on_release=self.check); l.add_widget(b)
+        self.add_widget(l)
+
+# --- 5. ESASY APP ---
+class BilimApp(App):
+    mode, cur_sub = 'kids', ''
+    def build(self):
+        sm = ScreenManager(transition=FadeTransition())
+        sm.add_widget(SplashScreen(name='splash'))
+        sm.add_widget(AgeSelect(name='age_select'))
+        sm.add_widget(MenuScreen(name='menu'))
+        sm.add_widget(QuizScreen(name='quiz'))
+        return sm
+
+if __name__ == '__main__':
+    BilimApp().run()
